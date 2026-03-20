@@ -20,6 +20,10 @@ const configInitTemplate = `# consul-review configuration
 #   copilot: gh auth login  (or set GH_TOKEN)
 #   oz:      oz auth login
 #
+# Full GitHub repository path including hostname (required).
+# Can also be passed at runtime via: consul-review review --repo github.com/owner/repo
+repo: "github.com/owner/repo"
+
 # Skill file (optional): path to a custom SKILL.md for the code review agent.
 # If omitted, the bundled default go-code-review skill is used.
 # Can also be passed at runtime via: consul-review review --skill /path/to/SKILL.md

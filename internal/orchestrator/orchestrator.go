@@ -40,11 +40,13 @@ type PRMeta struct {
 }
 
 // fetchPR retrieves the PR title, body, and unified diff for prNumber using
-// the gh CLI through the Runner interface.
-func fetchPR(ctx context.Context, r runner.Runner, prNumber string) (PRMeta, error) {
+// the gh CLI through the Runner interface. repo must be the full path
+// including hostname, e.g. "github.com/owner/repo".
+func fetchPR(ctx context.Context, r runner.Runner, repo, prNumber string) (PRMeta, error) {
 	var metaBuf bytes.Buffer
 	if err := r.Run(ctx, "gh", []string{
 		"pr", "view", prNumber,
+		"--repo", repo,
 		"--json", "title,body",
 		"--jq", `"TITLE:\(.title)\nBODY:\(.body)"`,
 	}, nil, &metaBuf); err != nil {
@@ -52,7 +54,7 @@ func fetchPR(ctx context.Context, r runner.Runner, prNumber string) (PRMeta, err
 	}
 
 	var diffBuf bytes.Buffer
-	if err := r.Run(ctx, "gh", []string{"pr", "diff", prNumber}, nil, &diffBuf); err != nil {
+	if err := r.Run(ctx, "gh", []string{"pr", "diff", prNumber, "--repo", repo}, nil, &diffBuf); err != nil {
 		return PRMeta{}, fmt.Errorf("gh pr diff: %w", err)
 	}
 
@@ -88,21 +90,18 @@ type workerResult struct {
 // parallel, then runs Claude to aggregate the outputs into a consolidated
 // review printed to stdout.
 //
-// The orchestrator is decoupled from any concrete agent implementation —
-// agents can shell out to binaries today, or call cloud APIs tomorrow, without
-// any change here.
-//
-// Concurrency: each agent runs in its own goroutine controlled by a WaitGroup;
-// errors are collected under a Mutex so no goroutine blocks another.
-func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, prNumber string, r runner.Runner) error {
-	slog.Info("fetching PR", "pr", prNumber)
-	pr, err := fetchPR(ctx, r, prNumber)
+// repo must be the full GitHub path including hostname, e.g.
+// "github.com/owner/repo". This is passed to the gh CLI and embedded in
+// ReviewRequest so future API agents can use it directly.
+func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, repo, prNumber string, r runner.Runner) error {
+	slog.Info("fetching PR", "repo", repo, "pr", prNumber)
+	pr, err := fetchPR(ctx, r, repo, prNumber)
 	if err != nil {
 		return fmt.Errorf("fetching PR #%s: %w", prNumber, err)
 	}
 
 	prompt := buildPrompt(skillContent, pr.Title, pr.Body, pr.Diff)
-	req := agent.ReviewRequest{Prompt: prompt}
+	req := agent.ReviewRequest{Prompt: prompt, Repo: repo}
 
 	outDir, err := os.MkdirTemp("", "consul-review-*")
 	if err != nil {

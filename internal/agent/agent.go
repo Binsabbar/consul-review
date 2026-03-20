@@ -25,6 +25,11 @@ type ReviewRequest struct {
 	// skill content + PR title + body + diff, pre-built by the orchestrator.
 	Prompt string
 
+	// Repo is the full GitHub repository path including hostname
+	// (e.g. "github.com/owner/repo"). Passed through for API agents that
+	// need it; binary agents use the repo indirectly via the prompt.
+	Repo string
+
 	// Model is the model identifier for this consul (e.g. "gemini-2.5-pro").
 	Model string
 

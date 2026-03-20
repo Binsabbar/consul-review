@@ -49,6 +49,11 @@ type ConsulConfig struct {
 // Each consul is a named top-level field, which allows adding consul-specific
 // configuration in the future without affecting other consul configs.
 type Config struct {
+	// Repo is the full GitHub repository path including hostname,
+	// e.g. "github.com/owner/repo". Required — can be set here or
+	// overridden at runtime with the --repo flag.
+	Repo string `mapstructure:"repo"`
+
 	// CodeReviewSkill is optional. When empty the binary's bundled skill is
 	// used. Can be overridden at runtime by the --skill flag.
 	CodeReviewSkill string       `mapstructure:"code_review_skill"`
@@ -104,10 +109,15 @@ func Load(path string) (*Config, error) {
 }
 
 // Validate performs structural validation of the config.
+//   - repo must not be empty
 //   - code_review_skill, if set, must exist on disk (empty = use bundled default)
 //   - At least one consul must be enabled
 func Validate(c *Config) error {
 	var errs []string
+
+	if c.Repo == "" {
+		errs = append(errs, "repo is required (set via config or --repo flag)")
+	}
 
 	// code_review_skill is optional — empty means use the bundled default.
 	if c.CodeReviewSkill != "" {

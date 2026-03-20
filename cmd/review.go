@@ -18,6 +18,7 @@ import (
 
 var (
 	prNumber  string
+	repoFlag  string
 	skillFile string
 )
 
@@ -25,16 +26,15 @@ var (
 var reviewCmd = &cobra.Command{
 	Use:   "review",
 	Short: "Review a GitHub PR using multiple AI agents",
-	Long: `Fetches the PR diff and metadata from GitHub via the gh CLI, then fans
-out the review to all enabled AI consuls in parallel. After all consuls finish,
-runs a final Claude aggregation to produce a consolidated review.`,
-	RunE: runReview,
+	Long:  `Review a GitHub PR using multiple AI agents.`,
+	RunE:  runReview,
 }
 
 func init() {
 	reviewCmd.Flags().StringVar(&prNumber, "pr", "", "GitHub PR number to review (required)")
 	_ = reviewCmd.MarkFlagRequired("pr")
 
+	reviewCmd.Flags().StringVar(&repoFlag, "repo", "", "full GitHub repo path including hostname, e.g. github.com/owner/repo (overrides config)")
 	reviewCmd.Flags().StringVar(&skillFile, "skill", "", "path to a skill file (overrides code_review_skill in config and the bundled default)")
 
 	rootCmd.AddCommand(reviewCmd)
@@ -66,21 +66,26 @@ func runReview(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("pre-flight check failed: %w", err)
 	}
 
-	// 4. Resolve skill content (flag > config > bundled).
+	// 4. Resolve repo (flag > config).
+	repo, err := resolveRepo(repoFlag, cfg.Repo)
+	if err != nil {
+		return err
+	}
+
+	// 5. Resolve skill content (flag > config > bundled).
 	skillContent, err := resolveSkill(skillFile, cfg.CodeReviewSkill)
 	if err != nil {
 		return err
 	}
 
-	// 5. Wire up binary agents from config. (Dependency wiring happens here in
-	// the cmd layer; the orchestrator only knows about the agent.Agent interface.)
+	// 6. Wire up binary agents from config.
 	r := runner.OSRunner{}
 	agents := makeAgents(cfg, r)
 
-	slog.Info("starting consul-review", "pr", prNumber, "agents", len(agents))
+	slog.Info("starting consul-review", "repo", repo, "pr", prNumber, "agents", len(agents))
 
-	// 6. Orchestrate.
-	if err := orchestrator.Orchestrate(cmd.Context(), agents, skillContent, prNumber, r); err != nil {
+	// 7. Orchestrate.
+	if err := orchestrator.Orchestrate(cmd.Context(), agents, skillContent, repo, prNumber, r); err != nil {
 		return fmt.Errorf("review failed: %w", err)
 	}
 
@@ -123,5 +128,18 @@ func resolveSkill(flagPath, cfgPath string) (string, error) {
 	default:
 		slog.Info("using bundled default skill (go-code-review)")
 		return assets.DefaultCodeReviewSkill, nil
+	}
+}
+
+// resolveRepo returns the repository path from the first non-empty source:
+// --repo flag → config value. Returns an error if neither is set.
+func resolveRepo(flagRepo, cfgRepo string) (string, error) {
+	switch {
+	case flagRepo != "":
+		return flagRepo, nil
+	case cfgRepo != "":
+		return cfgRepo, nil
+	default:
+		return "", fmt.Errorf("repo is required: set it in config (repo: github.com/owner/repo) or pass --repo")
 	}
 }

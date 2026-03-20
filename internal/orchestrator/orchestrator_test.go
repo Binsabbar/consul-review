@@ -61,7 +61,7 @@ func (s *OrchestratorSuite) TestOrchestrate_AllAgentsRunInParallel() {
 
 	err := Orchestrate(context.Background(),
 		[]agent.Agent{gemini, copilot},
-		"## skill", "42", ghRunner)
+		"## skill", "github.com/test/repo", "42", ghRunner)
 
 	s.Require().NoError(err)
 	s.Require().True(gemini.called, "gemini must be called")
@@ -77,7 +77,7 @@ func (s *OrchestratorSuite) TestOrchestrate_PartialFailure_OthersContinue() {
 
 	err := Orchestrate(context.Background(),
 		[]agent.Agent{bad, good},
-		"## skill", "99", ghRunner)
+		"## skill", "github.com/test/repo", "99", ghRunner)
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "partial failure")
@@ -93,7 +93,7 @@ func (s *OrchestratorSuite) TestOrchestrate_AllFail_ReturnsError() {
 			&fakeAgent{name: "gemini", err: fmt.Errorf("fail")},
 			&fakeAgent{name: "copilot", err: fmt.Errorf("fail")},
 		},
-		"## skill", "1", ghRunner)
+		"## skill", "github.com/test/repo", "1", ghRunner)
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "all consuls failed")

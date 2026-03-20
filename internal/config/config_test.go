@@ -136,6 +136,7 @@ func (s *ConfigSuite) TestValidate_TableDriven() {
 		{
 			name: "valid config with skill file",
 			cfg: &Config{
+				Repo:            "github.com/owner/repo",
 				CodeReviewSkill: skillFile,
 				Gemini:          ConsulConfig{Enabled: true, Model: "gemini-3-pro"},
 			},
@@ -143,25 +144,32 @@ func (s *ConfigSuite) TestValidate_TableDriven() {
 		},
 		{
 			name:    "empty skill path uses bundled default — valid",
-			cfg:     &Config{Gemini: ConsulConfig{Enabled: true}},
+			cfg:     &Config{Repo: "github.com/owner/repo", Gemini: ConsulConfig{Enabled: true}},
 			wantErr: false,
 		},
 		{
 			name: "skill file not on disk",
 			cfg: &Config{
+				Repo:            "github.com/owner/repo",
 				CodeReviewSkill: filepath.Join(s.tmpDir, "missing.md"),
 				Gemini:          ConsulConfig{Enabled: true},
 			},
 			wantErr: true,
 		},
 		{
+			name:    "missing repo",
+			cfg:     &Config{Gemini: ConsulConfig{Enabled: true}},
+			wantErr: true,
+		},
+		{
 			name:    "no enabled consuls",
-			cfg:     &Config{CodeReviewSkill: skillFile},
+			cfg:     &Config{Repo: "github.com/owner/repo", CodeReviewSkill: skillFile},
 			wantErr: true,
 		},
 		{
 			name: "all consuls disabled",
 			cfg: &Config{
+				Repo:    "github.com/owner/repo",
 				Gemini:  ConsulConfig{Enabled: false},
 				Copilot: ConsulConfig{Enabled: false},
 				Oz:      ConsulConfig{Enabled: false},
