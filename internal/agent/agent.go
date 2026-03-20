@@ -22,13 +22,17 @@ type Agent interface {
 // prompt programmatically from the same data.
 type ReviewRequest struct {
 	// Prompt is the fully-constructed review prompt:
-	// skill content + PR title + body + diff, pre-built by the orchestrator.
+	// skill content + repo + PR number, pre-built by the orchestrator.
 	Prompt string
 
 	// Repo is the full GitHub repository path including hostname
-	// (e.g. "github.com/owner/repo"). Passed through for API agents that
-	// need it; binary agents use the repo indirectly via the prompt.
+	// (e.g. "github.com/owner/repo"). Available for API agents that
+	// need it to call platform APIs directly.
 	Repo string
+
+	// PRNumber is the pull request number as a string.
+	// Available for API agents that need it to call platform APIs directly.
+	PRNumber string
 
 	// Model is the model identifier for this consul (e.g. "gemini-2.5-pro").
 	Model string

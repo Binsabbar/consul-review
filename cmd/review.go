@@ -85,7 +85,7 @@ func runReview(cmd *cobra.Command, _ []string) error {
 	slog.Info("starting consul-review", "repo", repo, "pr", prNumber, "agents", len(agents))
 
 	// 7. Orchestrate.
-	if err := orchestrator.Orchestrate(cmd.Context(), agents, skillContent, repo, prNumber, r); err != nil {
+	if err := orchestrator.Orchestrate(cmd.Context(), agents, skillContent, repo, prNumber); err != nil {
 		return fmt.Errorf("review failed: %w", err)
 	}
 

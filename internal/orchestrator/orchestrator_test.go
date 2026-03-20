@@ -3,14 +3,12 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"io"
-	"sync"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/binsabbar/consul-review/internal/agent"
-	"github.com/binsabbar/consul-review/internal/runner"
 )
 
 // OrchestratorSuite tests the orchestration logic.
@@ -26,27 +24,11 @@ func TestOrchestratorSuite(t *testing.T) {
 // buildPrompt
 // ---------------------------------------------------------------------------
 
-func (s *OrchestratorSuite) TestBuildPrompt_ContainsAllSections() {
-	prompt := buildPrompt("## Skill", "Fix auth bug", "Fixes a security issue.", "- old\n+ new")
+func (s *OrchestratorSuite) TestBuildPrompt_ContainsAllParts() {
+	prompt := buildPrompt("## Skill\nDo a great review.", "github.com/owner/repo", "42")
 	s.Require().Contains(prompt, "## Skill")
-	s.Require().Contains(prompt, "Fix auth bug")
-	s.Require().Contains(prompt, "Fixes a security issue.")
-	s.Require().Contains(prompt, "- old\n+ new")
-}
-
-func (s *OrchestratorSuite) TestBuildPrompt_EmptyBodyOmitted() {
-	prompt := buildPrompt("skill", "title", "", "diff")
-	s.Require().NotContains(prompt, "Description")
-}
-
-// ---------------------------------------------------------------------------
-// parsePRMeta
-// ---------------------------------------------------------------------------
-
-func (s *OrchestratorSuite) TestParsePRMeta() {
-	m := parsePRMeta("TITLE:Fix the bug\nBODY:Detailed description")
-	s.Require().Equal("Fix the bug", m.Title)
-	s.Require().Equal("Detailed description", m.Body)
+	s.Require().Contains(prompt, "github.com/owner/repo")
+	s.Require().Contains(prompt, "#42")
 }
 
 // ---------------------------------------------------------------------------
@@ -57,50 +39,75 @@ func (s *OrchestratorSuite) TestOrchestrate_AllAgentsRunInParallel() {
 	gemini := &fakeAgent{name: "gemini", output: "gemini review"}
 	copilot := &fakeAgent{name: "copilot", output: "copilot review"}
 
-	ghRunner := newGhFake("TITLE:Test PR\nBODY:body", "+ line")
-
 	err := Orchestrate(context.Background(),
 		[]agent.Agent{gemini, copilot},
-		"## skill", "github.com/test/repo", "42", ghRunner)
+		"## skill", "github.com/test/repo", "42")
 
 	s.Require().NoError(err)
 	s.Require().True(gemini.called, "gemini must be called")
 	s.Require().True(copilot.called, "copilot must be called")
-	s.Require().True(ghRunner.calledWith("claude"), "aggregation must run")
 }
 
 func (s *OrchestratorSuite) TestOrchestrate_PartialFailure_OthersContinue() {
 	good := &fakeAgent{name: "copilot", output: "copilot review"}
 	bad := &fakeAgent{name: "gemini", err: fmt.Errorf("simulated crash")}
 
-	ghRunner := newGhFake("TITLE:Test PR\nBODY:body", "+ line")
-
 	err := Orchestrate(context.Background(),
 		[]agent.Agent{bad, good},
-		"## skill", "github.com/test/repo", "99", ghRunner)
+		"## skill", "github.com/test/repo", "99")
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "partial failure")
 	s.Require().True(good.called, "good agent must still run")
-	s.Require().True(ghRunner.calledWith("claude"), "aggregation runs with the surviving output")
 }
 
 func (s *OrchestratorSuite) TestOrchestrate_AllFail_ReturnsError() {
-	ghRunner := newGhFake("TITLE:PR\nBODY:", "+ line")
-
 	err := Orchestrate(context.Background(),
 		[]agent.Agent{
 			&fakeAgent{name: "gemini", err: fmt.Errorf("fail")},
 			&fakeAgent{name: "copilot", err: fmt.Errorf("fail")},
 		},
-		"## skill", "github.com/test/repo", "1", ghRunner)
+		"## skill", "github.com/test/repo", "1")
 
 	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "all consuls failed")
+	s.Require().Contains(err.Error(), "all agents failed")
+}
+
+func (s *OrchestratorSuite) TestOrchestrate_NoAgents_ReturnsError() {
+	err := Orchestrate(context.Background(), nil, "## skill", "github.com/test/repo", "1")
+	s.Require().Error(err)
+}
+
+func (s *OrchestratorSuite) TestOrchestrate_PromptContainsRepoAndPR() {
+	var capturedPrompt string
+	capture := &capturingAgent{name: "test", onReview: func(req agent.ReviewRequest) {
+		capturedPrompt = req.Prompt
+	}}
+
+	_ = Orchestrate(context.Background(),
+		[]agent.Agent{capture},
+		"## My Skill", "github.com/owner/repo", "99")
+
+	s.Require().Contains(capturedPrompt, "github.com/owner/repo")
+	s.Require().Contains(capturedPrompt, "#99")
+}
+
+func (s *OrchestratorSuite) TestOrchestrate_RequestHasRepoAndPRNumber() {
+	var capturedReq agent.ReviewRequest
+	capture := &capturingAgent{name: "test", onReview: func(req agent.ReviewRequest) {
+		capturedReq = req
+	}}
+
+	_ = Orchestrate(context.Background(),
+		[]agent.Agent{capture},
+		"## Skill", "github.com/owner/repo", "55")
+
+	s.Require().Equal("github.com/owner/repo", capturedReq.Repo)
+	s.Require().Equal("55", capturedReq.PRNumber)
 }
 
 // ---------------------------------------------------------------------------
-// Fake agent (satisfies agent.Agent)
+// Fake agents
 // ---------------------------------------------------------------------------
 
 type fakeAgent struct {
@@ -117,48 +124,17 @@ func (f *fakeAgent) Review(_ context.Context, _ agent.ReviewRequest) (agent.Revi
 	return agent.ReviewResult{AgentName: f.name, Output: f.output}, f.err
 }
 
-// ---------------------------------------------------------------------------
-// Fake gh runner (only handles gh + claude calls)
-// ---------------------------------------------------------------------------
-
-type ghFakeRunner struct {
-	mu    sync.Mutex
-	meta  string
-	diff  string
-	calls []string
+type capturingAgent struct {
+	name     string
+	onReview func(agent.ReviewRequest)
 }
 
-func newGhFake(meta, diff string) *ghFakeRunner {
-	return &ghFakeRunner{meta: meta, diff: diff}
+func (c *capturingAgent) Name() string { return c.name }
+
+func (c *capturingAgent) Review(_ context.Context, req agent.ReviewRequest) (agent.ReviewResult, error) {
+	c.onReview(req)
+	return agent.ReviewResult{AgentName: c.name, Output: "ok"}, nil
 }
 
-func (g *ghFakeRunner) Run(_ context.Context, name string, args []string, _ io.Reader, stdout io.Writer) error {
-	g.mu.Lock()
-	g.calls = append(g.calls, name)
-	g.mu.Unlock()
-
-	if name == "gh" {
-		for _, a := range args {
-			if a == "view" {
-				_, _ = fmt.Fprint(stdout, g.meta)
-				return nil
-			}
-		}
-		_, _ = fmt.Fprint(stdout, g.diff)
-	}
-	return nil
-}
-
-func (g *ghFakeRunner) calledWith(name string) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	for _, c := range g.calls {
-		if c == name {
-			return true
-		}
-	}
-	return false
-}
-
-// Compile-time check.
-var _ runner.Runner = (*ghFakeRunner)(nil)
+// Keep strings import used in test output assertions.
+var _ = strings.Contains

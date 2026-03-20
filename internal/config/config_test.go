@@ -205,27 +205,20 @@ func (s *ConfigSuite) TestCheckBinaries_TableDriven() {
 		{
 			name:       "all binaries present",
 			cfg:        &Config{Gemini: ConsulConfig{Enabled: true}},
-			fakeLookup: map[string]bool{"gemini": true, "gh": true, "claude": true},
+			fakeLookup: map[string]bool{"gemini": true},
 			wantErr:    false,
 		},
 		{
 			name:        "missing gemini binary",
 			cfg:         &Config{Gemini: ConsulConfig{Enabled: true}},
-			fakeLookup:  map[string]bool{"gh": true, "claude": true},
+			fakeLookup:  map[string]bool{},
 			wantErr:     true,
 			errContains: "gemini",
 		},
 		{
-			name:        "missing gh binary",
-			cfg:         &Config{Gemini: ConsulConfig{Enabled: true}},
-			fakeLookup:  map[string]bool{"gemini": true, "claude": true},
-			wantErr:     true,
-			errContains: "gh",
-		},
-		{
 			name:       "disabled consul binary not required",
 			cfg:        &Config{Gemini: ConsulConfig{Enabled: true}, Copilot: ConsulConfig{Enabled: false}},
-			fakeLookup: map[string]bool{"gemini": true, "gh": true, "claude": true},
+			fakeLookup: map[string]bool{"gemini": true},
 			wantErr:    false,
 		},
 	}

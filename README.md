@@ -1,23 +1,24 @@
 # consul-review
 
-> Orchestrate multiple AI agents to review GitHub Pull Requests in parallel, then aggregate their findings into a single consolidated review.
+> Orchestrate multiple AI agents to review GitHub Pull Requests in parallel.
 
 ---
 
 ## What is consul-review?
 
-`consul-review` is a CLI tool for engineering teams who want richer, more diverse automated PR feedback. Instead of relying on a single AI model, it fans out the same review request to multiple AI agents — **Consuls** — concurrently, then uses Claude to synthesise their outputs into one actionable summary.
+`consul-review` is a CLI tool that fans out a PR review request to multiple AI agents — **Consuls** — concurrently and prints each agent's full review to stdout when all are done.
 
 ```
-PR #42
-  │
-  ├─► gemini ──────► review_gemini.md ─┐
-  ├─► copilot ─────► review_copilot.md ─┼─► claude (aggregation) ──► stdout
-  └─► oz ──────────► review_oz.md ─────┘
+consul-review review --pr 42 --repo github.com/owner/repo
+        │
+        ├─► gemini  ─────► (review output) ─┐
+        ├─► copilot ─────► (review output) ─┼─► stdout (each review printed with header)
+        └─► oz ──────────► (review output) ─┘
 ```
 
-**Why multiple agents?**
-Different models have different strengths, blind spots, and coding knowledge. Running them in parallel and aggregating their output surfaces issues that a single model might miss, reduces false negatives, and gives you a second opinion from another model family — without waiting any longer than the slowest consul.
+**How PR retrieval works:** The tool does _not_ fetch the PR itself. Instead it passes the skill file, repository, and PR number directly to each agent binary. The **skill file instructs each agent** on how to fetch the PR details — this could be via the `gh` CLI, an MCP server, a browser tool, or any other mechanism the agent supports. This keeps `consul-review` as a pure orchestration layer with no hard dependency on `gh` or any aggregation tool.
+
+**Why multiple agents?** Different models surface different issues. Running them in parallel costs no extra wall-clock time — you wait as long as the slowest consul.
 
 ---
 
@@ -25,8 +26,6 @@ Different models have different strengths, blind spots, and coding knowledge. Ru
 
 | Dependency | Purpose | Install |
 |-----------|---------|---------|
-| `gh` CLI | Fetch PR diffs and metadata from GitHub | [cli.github.com](https://cli.github.com) |
-| `claude` | Final review aggregation | [claude.ai/code](https://claude.ai/code) |
 | `gemini` | AI consul _(if enabled)_ | [AI Studio CLI](https://developers.google.com/gemini-api/docs/gemini-cli) |
 | `copilot` | AI consul _(if enabled)_ | [GitHub Copilot CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli) |
 | `oz` | AI consul _(if enabled)_ | Internal / your own install |
@@ -34,9 +33,9 @@ Different models have different strengths, blind spots, and coding knowledge. Ru
 > **Authentication is your responsibility.** Run each agent's auth command before using `consul-review`. No API keys or tokens are stored in the config file.
 >
 > ```bash
-> gh auth login                  # GitHub (also covers copilot)
 > gemini auth login              # Gemini
-> oz auth login                  # Oz / Claude
+> gh auth login                  # GitHub Copilot
+> oz auth login                  # Oz
 > ```
 
 ---
@@ -51,7 +50,7 @@ brew install binsabbar/tap/consul-review
 
 ### Download a release binary
 
-Download the latest binary for your platform from the [Releases page](https://github.com/binsabbar/consul-review/releases), then move it to a directory in your `$PATH`:
+Download the latest binary from the [Releases page](https://github.com/binsabbar/consul-review/releases):
 
 ```bash
 # macOS (Apple Silicon)
@@ -76,24 +75,23 @@ make go-build
 # 1. Initialise your config file
 consul-review config init
 
-# 2. Edit ~/.consul-review/config.yaml — enable the agents you have installed
-#    (see Configuration section below)
+# 2. Edit ~/.consul-review/config.yaml
+#    Set your repo and enable the agents you have installed
 
-# 3. Authenticate each agent you enabled
-gh auth login
+# 3. Authenticate each enabled agent
 gemini auth login
 
 # 4. Review a PR
 consul-review review --pr 42
 ```
 
-That's it. The combined review prints to your terminal when all consuls finish.
+Each agent's full review prints to stdout when all consuls finish.
 
 ---
 
 ## Configuration
 
-The default config file lives at `~/.consul-review/config.yaml`. Generate it with:
+Generate the default config at `~/.consul-review/config.yaml`:
 
 ```bash
 consul-review config init          # create
@@ -103,9 +101,13 @@ consul-review config init --force  # overwrite existing
 ### Full config reference
 
 ```yaml
+# Full GitHub repository path including hostname (required).
+# Can also be overridden per-run with: --repo github.com/owner/repo
+repo: "github.com/owner/repo"
+
 # Optional: path to a custom skill/prompt file.
-# Omit → bundled go-code-review skill is used automatically.
-# Override per-run with: consul-review review --skill /path/to/SKILL.md
+# Omit → the bundled go-code-review skill is used automatically.
+# Override per-run with: --skill /path/to/SKILL.md
 # code_review_skill: "~/.agents/skills/my-review/SKILL.md"
 
 # ─── Consuls ──────────────────────────────────────────────────────────────────
@@ -116,8 +118,7 @@ consul-review config init --force  # overwrite existing
 #   copilot: [--allow-all-tools]
 #   oz:      [--no-interactive]
 #
-# extra_args REPLACES the built-in flags when set — use to add model-specific
-# options or experiment with different flags.
+# extra_args REPLACES the built-in flags when set.
 
 gemini:
   enabled: true
@@ -133,8 +134,6 @@ oz:
   model: "claude-3-5-sonnet"
 ```
 
-> **Note:** `extra_args` replaces the non-interactive flags entirely for that consul. The prompt is always appended last.
-
 ---
 
 ## CLI Reference
@@ -144,12 +143,13 @@ oz:
 Review a GitHub PR using all enabled consuls.
 
 ```
-consul-review review --pr <PR_NUMBER> [--skill <PATH>] [--config <PATH>]
+consul-review review --pr <PR_NUMBER> [--repo <HOST/OWNER/REPO>] [--skill <PATH>] [--config <PATH>]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--pr` | **(Required)** GitHub PR number |
+| `--repo` | Full GitHub path including hostname, e.g. `github.com/owner/repo` (overrides config) |
 | `--skill` | Path to a skill/prompt file — overrides `code_review_skill` in config and the bundled default |
 | `--config` | Path to config file (default: `~/.consul-review/config.yaml`) |
 | `--debug` | Enable verbose debug logging |
@@ -157,13 +157,16 @@ consul-review review --pr <PR_NUMBER> [--skill <PATH>] [--config <PATH>]
 **Examples:**
 
 ```bash
-# Review PR #42 with defaults
+# Review PR #42 (repo set in config)
 consul-review review --pr 42
+
+# Override repo for this run
+consul-review review --pr 42 --repo github.com/my-org/my-service
 
 # Use a custom skill file for this run only
 consul-review review --pr 42 --skill ./my-project-review.md
 
-# Use a non-standard config
+# Use a non-standard config (e.g. in CI)
 consul-review review --pr 42 --config ./ci-config.yaml
 ```
 
@@ -187,9 +190,11 @@ Print version, commit, build date, and builder.
 
 ## Skill Files
 
-A **skill file** is a Markdown document that instructs the AI consuls how to review code. It is prepended to the PR diff and title before being sent to each agent.
+A **skill file** is a Markdown document that:
+1. Defines the review standards and focus areas for each agent
+2. **Instructs each agent how to fetch PR details** (e.g. via `gh pr view`, an MCP tool, web browsing — whatever the agent supports)
 
-`consul-review` ships with a **bundled default skill** (`go-code-review`) focused on Go best practices. It is embedded directly in the binary — no extra files required.
+`consul-review` ships with a **bundled default skill** (`go-code-review`) focused on Go best practices, embedded directly in the binary — no extra files required.
 
 **Priority order** (highest wins):
 
@@ -197,62 +202,45 @@ A **skill file** is a Markdown document that instructs the AI consuls how to rev
 2. `code_review_skill` in your config file (project-level default)
 3. Bundled `go-code-review` skill (zero-config fallback)
 
-You can write your own skill for any language or review style and point to it via either mechanism.
-
 ---
 
 ## How It Works
 
 ```
-consul-review review --pr 42
+consul-review review --pr 42 --repo github.com/owner/repo
          │
          ▼
   Load config + validate
-  Check required binaries exist (gh, claude, enabled consuls)
+  Check enabled consul binaries exist in PATH
          │
          ▼
-  gh pr view  ──► PR title + body
-  gh pr diff  ──► unified diff
-         │
-  Build prompt = skill + PR title + body + diff
+  Build prompt = skill content + repo + PR number
+  (skill instructs each agent on HOW to fetch the PR)
          │
   ┌──────┴──────┐
-  │ Goroutine 1 │ gemini  -p "<prompt>" --yolo --model gemini-2.5-pro
-  │ Goroutine 2 │ copilot -p "<prompt>" --allow-all-tools
-  │ Goroutine 3 │ oz agent run --prompt "<prompt>" --no-interactive
+  │ Goroutine 1 │  gemini  -p "<prompt>" --yolo --model gemini-2.5-pro
+  │ Goroutine 2 │  copilot -p "<prompt>" --allow-all-tools
+  │ Goroutine 3 │  oz agent run --prompt "<prompt>" --no-interactive
   └──────┬──────┘
-         │ all run concurrently (WaitGroup)
+         │ all run concurrently (sync.WaitGroup)
          ▼
-  Collect output files + errors
-         │
-         ▼
-  claude "<summarise review_gemini.md review_copilot.md ...>"
-         │
-         ▼
-  Consolidated review ──► stdout
+  Print each agent's full review to stdout
 ```
 
-Partial failures are tolerated — if one consul fails, the others continue and the aggregation still runs over the successful outputs.
+Each agent binary reads the skill + repo + PR number and decides how to fetch the PR data (gh CLI, MCP, API, etc.). The orchestrator only cares about the final review text.
+
+Partial failures are tolerated — if one consul crashes, the others continue and successful reviews are still printed.
 
 ---
 
 ## Development
 
 ```bash
-# Build
-make go-build
-
-# Test (with race detector)
-make go-test
-
-# Lint
-make go-lint
-
-# Vulnerability scan
-make go-vulncheck
-
-# Snapshot release (local, no git tag required)
-make release-snapshot
+make go-build          # build binary → ./bin/consul-review
+make go-test           # run tests with race detector
+make go-lint           # run golangci-lint
+make go-vulncheck      # run govulncheck
+make release-snapshot  # local GoReleaser snapshot (no tag needed)
 ```
 
 ### Adding a changelog entry
@@ -265,10 +253,10 @@ git commit -m "chore(changes): add changelog entry"
 
 ### Cutting a release
 
-1. Run the **prepare-release** GitHub Actions workflow (select version + type)
+1. Run the **prepare-release** GitHub Actions workflow (select version)
    — it batches the changelog and opens a PR automatically
 2. Merge the PR
-3. Run the **release** GitHub Actions workflow (select version + type)
+3. Run the **release** GitHub Actions workflow
    — it creates the git tag and publishes binaries via GoReleaser
 
 ---
@@ -276,15 +264,16 @@ git commit -m "chore(changes): add changelog entry"
 ## Roadmap
 
 ### v0.x — Current (CLI-based)
-- ✅ Parallel multi-agent PR review
-- ✅ Claude aggregation
+- ✅ Parallel multi-agent PR review (pure orchestration, no gh dependency)
+- ✅ Each agent uses its own skill-instructed method to fetch PRs
 - ✅ Configurable non-interactive flags (`extra_args`)
 - ✅ Custom skill files with bundled fallback
 - ✅ `config init` subcommand
-- ✅ `--skill` runtime override
+- ✅ `--skill` and `--repo` runtime overrides
+- ✅ Clean `Agent` interface — binary and API backends are plug-and-play
 
 ### Future milestone — Direct API Integration
-> **No binary dependencies.** The next major milestone is direct API integration with each agent's cloud API (Gemini API, OpenAI API, Anthropic API). This will eliminate the requirement to have `gemini`, `copilot`, and `oz` CLI binaries installed locally, making `consul-review` truly self-contained and easier to run in CI/CD pipelines.
+> **No binary dependencies.** The next major milestone is direct API integration with each agent's cloud (Gemini API, OpenAI API, Anthropic API). This will eliminate the requirement to have `gemini`, `copilot`, and `oz` CLI binaries installed locally, making `consul-review` truly self-contained and easy to run in CI/CD pipelines. The `Agent` interface is already designed for this — adding a new backend is a single new implementation file with zero changes to the orchestrator or CLI.
 
 ---
 

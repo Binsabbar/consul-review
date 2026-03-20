@@ -140,17 +140,13 @@ func Validate(c *Config) error {
 // It is a package-level variable so tests can inject a fake.
 var LookPathFunc = exec.LookPath
 
-// CheckBinaries verifies that every enabled consul's binary and gh are present
-// in PATH. Returns a single error listing all missing binaries.
+// CheckBinaries verifies that every enabled consul's binary is present in PATH.
+// No other binaries are required — each agent handles PR retrieval itself,
+// as instructed by the skill file.
 func CheckBinaries(c *Config) error {
-	required := []string{"gh", "claude"}
-
-	for name := range c.EnabledConsuls() {
-		required = append(required, SupportedConsuls[name])
-	}
-
 	var missing []string
-	for _, bin := range required {
+	for name := range c.EnabledConsuls() {
+		bin := SupportedConsuls[name]
 		if _, err := LookPathFunc(bin); err != nil {
 			missing = append(missing, bin)
 		}
