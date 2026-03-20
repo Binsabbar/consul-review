@@ -1,0 +1,92 @@
+version: "2"
+
+issues:
+  max-same-issues: 50
+
+formatters:
+  enable:
+    - goimports
+    - gofmt
+
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/binsabbar/consul-review
+
+linters:
+  disable:
+    - forbidigo          # CLI tools need fmt.Print for user output
+    - gochecknoglobals   # CLI tools use global command variables (cobra)
+    - gocognit           # CLI command functions are naturally complex
+    - cyclop             # Same as gocognit
+    - funlen             # CLI command functions can be long
+    - mnd                # Magic numbers acceptable in CLI defaults
+    - nestif             # CLI conditional logic can be nested
+    - noctx              # Context not critical for all CLI paths
+    - gocyclo            # Duplicate of cyclop
+    - reassign           # slog logger reassignment is intentional
+    - unparam            # Some parameters for interface consistency
+    - wastedassign       # False positives on CLI variable assignments
+    - godot              # Comment punctuation not mandatory
+    - gocritic           # ifElseChain too strict for CLI
+    - perfsprint         # Performance micro-optimization not needed
+    - usestdlibvars      # String literals vs constants acceptable
+    - testpackage        # Tests in same package is intentional for white-box access
+    - gochecknoinits     # Cobra uses init() by convention
+    - depguard           # No custom import restrictions needed
+    - exhaustive         # Enum exhaustiveness not required
+    - godoclint          # Doc practice not mandatory
+    - promlinter         # No Prometheus metrics
+    - protogetter        # No protobuf
+    - rowserrcheck       # No SQL rows
+    - sqlclosecheck      # No SQL
+    - spancheck          # No OpenTelemetry spans
+    - unqueryvet         # No SQL queries
+    - ireturn            # Interfaces for runner pattern are acceptable
+    - varnamelen         # Too many false positives
+    - wrapcheck          # External errors wrapped at boundaries already
+    - nonamedreturns     # Named returns acceptable in some cases
+    - exhaustruct        # Too strict for CLI structs
+    - tparallel          # testify/suite doesn't use t.Parallel()
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - copyloopvar
+    - dupl
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - fatcontext
+    - funcorder
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - goconst
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - govet
+    - ineffassign
+    - intrange
+    - loggercheck
+    - makezero
+    - mirror
+    - musttag
+    - nakedret
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nosprintfhostport
+    - predeclared
+    - recvcheck
+    - revive
+    - sloglint
+    - staticcheck
+    - testableexamples
+    - testifylint
+    - unconvert
+    - unused
+    - usetesting
+    - whitespace

@@ -1,0 +1,141 @@
+name: prepare-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Base version (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease_type:
+        description: 'Pre-release type (none for stable preparation)'
+        required: false
+        type: choice
+        options:
+          - none
+          - alpha
+          - beta
+          - rc
+        default: none
+
+env:
+  CHANGIE_VERSION: "1.20.0"
+  GO_VERSION: "1.24"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            go.mod
+
+      - name: Install changie
+        run: |
+          go install github.com/miniscruff/changie@v${{ env.CHANGIE_VERSION }}
+
+      - name: Calculate version
+        id: version
+        run: |
+          BASE_VERSION="${{ github.event.inputs.version }}"
+          PRERELEASE="${{ github.event.inputs.prerelease_type }}"
+          BASE_VERSION="${BASE_VERSION#v}"
+
+          if [ "$PRERELEASE" == "none" ]; then
+            VERSION="${BASE_VERSION}"
+            FULL_VERSION="v${BASE_VERSION}"
+            PRERELEASE_SUFFIX=""
+          else
+            EXISTING_TAGS=$(git tag -l "v${BASE_VERSION}-${PRERELEASE}.*" | sort -V)
+            if [ -z "$EXISTING_TAGS" ]; then
+              SUFFIX=1
+            else
+              LAST_TAG=$(echo "$EXISTING_TAGS" | tail -1)
+              LAST_SUFFIX=$(echo "$LAST_TAG" | grep -oP "${PRERELEASE}\.\K[0-9]+$")
+              SUFFIX=$((LAST_SUFFIX + 1))
+            fi
+            VERSION="${BASE_VERSION}-${PRERELEASE}.${SUFFIX}"
+            FULL_VERSION="v${VERSION}"
+            PRERELEASE_SUFFIX="${PRERELEASE}.${SUFFIX}"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "branch=feature/prepare-release-${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "prerelease=${PRERELEASE}" >> $GITHUB_OUTPUT
+          echo "prerelease_suffix=${PRERELEASE_SUFFIX}" >> $GITHUB_OUTPUT
+          echo "✅ Version: ${FULL_VERSION}"
+
+      - name: Check if preparation already exists
+        id: check
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if grep -q "^## ${VERSION}" CHANGELOG.md 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Version ${VERSION} already in CHANGELOG.md"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ New preparation needed"
+          fi
+
+      - name: Create preparation branch
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git checkout -b "${{ steps.version.outputs.branch }}"
+
+      - name: Batch changelog with changie
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          PRERELEASE=${{ steps.version.outputs.prerelease }}
+          if [ "$PRERELEASE" != "none" ] && [ -n "$PRERELEASE" ]; then
+            changie batch "${VERSION}" --prerelease "${{ steps.version.outputs.prerelease_suffix }}"
+          else
+            changie batch "${VERSION}"
+          fi
+          changie merge
+
+      - name: Commit and push
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          BRANCH=${{ steps.version.outputs.branch }}
+          FULL_VERSION=${{ steps.version.outputs.full_version }}
+
+          git add CHANGELOG.md .changes/
+          git commit -m "chore(release): prepare ${FULL_VERSION}"
+          git push origin "${BRANCH}"
+
+      - name: Open pull request
+        if: steps.check.outputs.exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = '${{ steps.version.outputs.branch }}';
+            const fullVersion = '${{ steps.version.outputs.full_version }}';
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `chore(release): prepare ${fullVersion}`,
+              head: branch,
+              base: 'main',
+              body: `## Release Preparation: ${fullVersion}\n\nThis PR updates the CHANGELOG for ${fullVersion}.\n\n**After merging**, trigger the [release workflow](../../actions/workflows/release.yaml).`,
+            });
+
+            console.log(`✅ PR created: ${pr.html_url}`);

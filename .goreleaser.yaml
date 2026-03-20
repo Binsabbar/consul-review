@@ -1,0 +1,117 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: consul-review
+    main: ./main.go
+    binary: "consul-review"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+
+snapshot:
+  version_template: "{{ .ShortCommit }}-devel"
+
+archives:
+  - id: consul-review
+    formats: ["tar.gz", "zip"]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  abbrev: 0
+  groups:
+    - title: 🚀 Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 🐛 Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 📚 Documentation
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 🔧 Improvements
+      regexp: '^.*?(refactor|perf|style)(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: 🧪 Testing
+      regexp: '^.*?test(\([[:word:]]+\))??!?:.+$'
+      order: 4
+    - title: 🏗️ Build & CI
+      regexp: '^.*?(build|ci)(\([[:word:]]+\))??!?:.+$'
+      order: 5
+    - title: 🔒 Security
+      regexp: '^.*?sec(\([[:word:]]+\))??!?:.+$'
+      order: 6
+    - title: 📦 Dependencies
+      regexp: '^.*?(deps|chore\(deps\))(\([[:word:]]+\))??!?:.+$'
+      order: 7
+    - title: 🔄 Other Changes
+      order: 999
+
+  filters:
+    exclude:
+      - '^chore:'
+      - '^chore\(deps\):'
+      - '^test:'
+      - '^docs\(readme\):'
+      - 'Merge pull request'
+      - 'Merge remote-tracking branch'
+      - 'Merge branch'
+      - '^WIP:'
+      - '^\[skip ci\]'
+      - '^\[ci skip\]'
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Release {{ .Tag }} ({{ .Date }})
+
+    New release of consul-review!
+  footer: |
+    ## Installation
+
+    ### Binary
+    Download the appropriate binary for your platform from the assets below.
+
+    ### Homebrew (coming soon)
+    ```bash
+    brew install binsabbar/tap/consul-review
+    ```
+
+    ## Full Changelog
+    See [CHANGELOG.md](https://github.com/binsabbar/consul-review/blob/main/CHANGELOG.md) for details.
+  extra_files:
+    - glob: dist/consul-review_linux_amd64*/consul-review
+      name_template: "consul-review_{{ .Version }}_linux_amd64"
+    - glob: dist/consul-review_linux_arm64*/consul-review
+      name_template: "consul-review_{{ .Version }}_linux_arm64"
+    - glob: dist/consul-review_darwin_amd64*/consul-review
+      name_template: "consul-review_{{ .Version }}_darwin_amd64"
+    - glob: dist/consul-review_darwin_arm64*/consul-review
+      name_template: "consul-review_{{ .Version }}_darwin_arm64"
+    - glob: CHANGELOG.md
+    - glob: README.md

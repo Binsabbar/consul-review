@@ -1,0 +1,33 @@
+# consul-review example configuration
+# Copy to ~/.consul-review/config.yaml or run: consul-review config init
+#
+# Authentication: configure each agent's CLI before running consul-review.
+#   gemini:  gemini auth login
+#   copilot: gh auth login  (or set GH_TOKEN)
+#   oz:      oz auth login
+#
+# No API keys or secrets are stored in this file.
+
+# Optional: path to a custom skill file.
+# Omit to use the bundled go-code-review skill, or override per-run with --skill.
+# code_review_skill: "~/.agents/skills/my-custom-review/SKILL.md"
+
+# ─── Consuls ──────────────────────────────────────────────────────────────────
+# Built-in non-interactive defaults (used when extra_args is omitted):
+#   gemini:  [--yolo]
+#   copilot: [--allow-all-tools]
+#   oz:      [--no-interactive]
+
+gemini:
+  enabled: true
+  model: "gemini-2.5-pro"
+  # Optional: override the non-interactive flags entirely.
+  # extra_args: ["--yolo", "--sandbox"]
+
+copilot:
+  enabled: false
+  model: "gpt-4"
+
+oz:
+  enabled: false
+  model: "claude-3-5-sonnet"

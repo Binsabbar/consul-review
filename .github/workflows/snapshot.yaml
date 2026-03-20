@@ -1,0 +1,47 @@
+name: snapshot
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-freeze:
+    uses: ./.github/workflows/check-release-freeze.yaml
+
+  test:
+    needs: check-freeze
+    uses: ./.github/workflows/test.yaml
+
+  lint:
+    needs: check-freeze
+    uses: ./.github/workflows/golangci-lint.yaml
+
+  snapshot:
+    needs: [check-freeze, test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            go.mod
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run GoReleaser snapshot
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: ~> v2
+          args: release --snapshot --clean

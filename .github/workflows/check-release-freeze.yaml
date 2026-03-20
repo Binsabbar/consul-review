@@ -1,0 +1,116 @@
+name: release-freeze-guard
+
+on:
+  workflow_call:
+    outputs:
+      frozen:
+        description: 'Whether a release freeze is active'
+        value: ${{ jobs.check-freeze.outputs.frozen }}
+
+jobs:
+  check-freeze:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    outputs:
+      frozen: ${{ steps.freeze-check.outputs.frozen }}
+    steps:
+      - name: Check for active release freeze
+        id: freeze-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName !== 'pull_request') {
+              console.log('Not a PR event, skipping freeze check');
+              core.setOutput('frozen', 'false');
+              return;
+            }
+
+            const currentPR = context.payload.pull_request;
+
+            if (currentPR.head.ref.startsWith('feature/prepare-release-')) {
+              console.log('✅ This is a prepare-release PR, skipping check');
+              core.setOutput('frozen', 'false');
+              return;
+            }
+
+            const { data: allPRs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              base: 'main',
+              per_page: 100
+            });
+
+            const prepareReleasePRs = allPRs.filter(pr =>
+              pr.head.ref.startsWith('feature/prepare-release-')
+            );
+
+            if (prepareReleasePRs.length === 0) {
+              console.log('✅ No release freeze active');
+              core.setOutput('frozen', 'false');
+              return;
+            }
+
+            const blockingPR = prepareReleasePRs[0];
+            core.setOutput('frozen', 'true');
+            core.setOutput('pr_number', blockingPR.number);
+            core.setOutput('pr_url', blockingPR.html_url);
+            core.setOutput('pr_author', blockingPR.user.login);
+
+            const versionMatch = blockingPR.head.ref.match(/prepare-release-v?(.+)$/);
+            const version = versionMatch ? versionMatch[1] : 'unknown';
+            core.setOutput('version', version);
+
+            console.log(`⚠️ Release freeze active for v${version}`);
+
+      - name: Add freeze labels
+        if: steps.freeze-check.outputs.frozen == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['🧊 release-freeze', '⏸️ on-hold']
+            });
+
+      - name: Comment on PR about freeze
+        if: steps.freeze-check.outputs.frozen == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.freeze-check.outputs.version }}';
+            const prNumber = '${{ steps.freeze-check.outputs.pr_number }}';
+            const prUrl = '${{ steps.freeze-check.outputs.pr_url }}';
+            const prAuthor = '${{ steps.freeze-check.outputs.pr_author }}';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `## 🧊 Release Freeze Active
+
+            **Version:** v${version}
+            **Status:** Preparing release
+
+            ### Blocking PR
+            [#${prNumber}](${prUrl}) by @${prAuthor}
+
+            ### What This Means
+            - ⛔ This PR **cannot be merged** until release preparation completes
+            - ⏰ Typical freeze duration: **15–30 minutes**
+
+            ### After Release Prep Merges
+            1. Rebase on the updated main branch
+            2. Re-request reviews if needed
+            `
+            });
+
+      - name: Fail if frozen
+        if: steps.freeze-check.outputs.frozen == 'true'
+        run: |
+          echo "::error::Release freeze active. Merge blocked."
+          exit 1

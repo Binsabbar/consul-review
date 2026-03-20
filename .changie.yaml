@@ -1,0 +1,48 @@
+changesDir: .changes
+unreleasedDir: unreleased
+headerPath: header.tpl.md
+headers:
+  - id: prerelease
+    path: .changes/header.prerelease.tpl.md
+    keepLatestOnly: true
+changelogPath: CHANGELOG.md
+versionExt: md
+versionFormat: '## {{.Version}} - {{.Time.Format "2006-01-02"}}'
+kindFormat: '### {{.Kind}}'
+changeFormat: '* {{.Body}}'
+kinds:
+  - label: ✨ Added
+    key: added
+    auto: minor
+  - label: 🔄 Changed
+    key: changed
+    auto: minor
+  - label: 💥 Breaking Changes
+    key: breaking
+    auto: major
+  - label: ⚠️ Deprecated
+    key: deprecated
+    auto: minor
+  - label: 🗑️ Removed
+    key: removed
+    auto: minor
+  - label: 🐛 Fixed
+    key: fixed
+    auto: patch
+  - label: 🔒 Security
+    key: security
+    auto: patch
+  - label: ⚡ Performance
+    key: performance
+    auto: patch
+  - label: 📚 Documentation
+    key: docs
+    auto: patch
+  - label: ⚠️ Known Issues
+    key: known_issues
+
+newlines:
+    afterChangelogHeader: 1
+    beforeChangelogVersion: 2
+    endOfVersion: 2
+envPrefix: CHANGIE_

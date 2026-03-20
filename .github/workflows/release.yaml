@@ -1,0 +1,115 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Base version (e.g., 1.0.0)"
+        required: true
+        type: string
+      release_type:
+        description: "Release type"
+        required: true
+        type: choice
+        options: [stable, rc, beta, alpha]
+      promote_from:
+        description: "Promote from tag (for stable releases, e.g., v1.0.0-rc.1)"
+        required: false
+        type: string
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            go.mod
+
+      - name: Calculate version
+        id: version
+        run: |
+          BASE_VERSION="${{ github.event.inputs.version }}"
+          RELEASE_TYPE="${{ github.event.inputs.release_type }}"
+          BASE_VERSION="${BASE_VERSION#v}"
+
+          if [ "$RELEASE_TYPE" == "stable" ]; then
+            VERSION="v${BASE_VERSION}"
+          else
+            EXISTING_TAGS=$(git tag -l "v${BASE_VERSION}-${RELEASE_TYPE}.*" | sort -V)
+            if [ -z "$EXISTING_TAGS" ]; then
+              SUFFIX=1
+            else
+              LAST_TAG=$(echo "$EXISTING_TAGS" | tail -1)
+              LAST_SUFFIX=$(echo "$LAST_TAG" | grep -oP "${RELEASE_TYPE}\.\K[0-9]+$")
+              SUFFIX=$((LAST_SUFFIX + 1))
+            fi
+            VERSION="v${BASE_VERSION}-${RELEASE_TYPE}.${SUFFIX}"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$([[ $RELEASE_TYPE != 'stable' ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "✅ Version: ${VERSION}"
+
+      - name: Check tag does not exist
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if git rev-parse "$VERSION" > /dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists"
+            exit 1
+          fi
+
+      - name: Determine commit to tag
+        id: commit
+        run: |
+          RELEASE_TYPE="${{ github.event.inputs.release_type }}"
+          PROMOTE_FROM="${{ github.event.inputs.promote_from }}"
+
+          if [ "$RELEASE_TYPE" == "stable" ] && [ -n "$PROMOTE_FROM" ]; then
+            COMMIT_SHA=$(git rev-list -n 1 "${PROMOTE_FROM}" 2>/dev/null) || {
+              echo "::error::Tag ${PROMOTE_FROM} not found"
+              exit 1
+            }
+            echo "promote=true" >> $GITHUB_OUTPUT
+          else
+            COMMIT_SHA=$(git rev-parse HEAD)
+            echo "promote=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          SHA=${{ steps.commit.outputs.sha }}
+
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git tag -a "${VERSION}" "${SHA}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
+          echo "✅ Tagged ${SHA} as ${VERSION}"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: ~> v2
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
