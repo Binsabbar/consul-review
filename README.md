@@ -42,7 +42,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
 
 ## Installation
 
-### Homebrew _(coming soon)_
+### Homebrew
 
 ```bash
 brew install binsabbar/tap/consul-review
