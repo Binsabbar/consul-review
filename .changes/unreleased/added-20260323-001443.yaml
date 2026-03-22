@@ -1,0 +1,3 @@
+kind: added
+body: Support customizing the code review prompt instructions via '--skill' flag
+time: 2026-03-23T00:14:43.089155+03:00

@@ -1,0 +1,3 @@
+kind: added
+body: Add 'config init' subcommand to generate the initial configuration file
+time: 2026-03-23T00:14:44.255588+03:00
