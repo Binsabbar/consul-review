@@ -83,10 +83,12 @@ func (s *BinaryAgentSuite) TestArgsFor_ExtraArgsOverride() {
 	extra := []string{"--yolo", "--sandbox"}
 	_, args, err := argsFor("gemini", "gemini-3-pro", "my-prompt", extra)
 	s.Require().NoError(err)
+	// promptArgs for gemini = [-p, <prompt>], then extraArgs appended
+	s.Require().Equal("-p", args[0], "prompt flag must come first")
+	s.Require().Equal("my-prompt", args[1], "prompt value must follow its flag")
 	s.Require().Contains(args, "--yolo")
 	s.Require().Contains(args, "--sandbox")
-	s.Require().Equal("my-prompt", args[len(args)-1], "prompt must be last")
-	s.Require().NotContains(args, "--model", "default --model flag must not appear when overriding")
+	s.Require().NotContains(args, "--model", "--model is a default flag; must not appear when using extraArgs")
 }
 
 // ---------------------------------------------------------------------------

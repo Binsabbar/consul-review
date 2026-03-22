@@ -17,47 +17,56 @@ import (
 	"github.com/binsabbar/consul-review/internal/runner"
 )
 
-// consulDef describes a supported consul binary and its default argument
-// builder. The default builder is used when ExtraArgs is not set in the
-// consul's config block.
+// consulDef describes a supported consul binary.
+//
+// promptArgs encodes how the binary expects the prompt (flag + value).
+// It is always used — even when extraArgs overrides the non-interactive flags —
+// so the prompt is never appended as a bare positional argument.
 type consulDef struct {
 	bin         string
+	promptArgs  func(prompt string) []string
 	defaultArgs func(model, prompt string) []string
 }
 
 // supportedConsuls holds the built-in argument builders for each consul.
 var supportedConsuls = map[string]consulDef{
 	"gemini": {
-		bin: "gemini",
+		bin:        "gemini",
+		promptArgs: func(prompt string) []string { return []string{"-p", prompt} },
 		defaultArgs: func(model, prompt string) []string {
 			return []string{"-p", prompt, "--yolo", "--model", model}
 		},
 	},
 	"copilot": {
-		bin: "copilot",
-		defaultArgs: func(_, prompt string) []string {
-			return []string{"-p", prompt, "--allow-all-tools"}
+		bin:        "copilot",
+		promptArgs: func(prompt string) []string { return []string{"-p", prompt} },
+		defaultArgs: func(model, prompt string) []string {
+			return []string{"-p", prompt, "--allow-all-tools", "--model", model}
 		},
 	},
 	"oz": {
-		bin: "oz",
-		defaultArgs: func(_, prompt string) []string {
-			return []string{"agent", "run", "--prompt", prompt, "--no-interactive"}
+		bin:        "oz",
+		promptArgs: func(prompt string) []string { return []string{"agent", "run", "--prompt", prompt} },
+		defaultArgs: func(model, prompt string) []string {
+			return []string{"agent", "run", "--prompt", prompt, "--no-interactive", "--model", model}
 		},
 	},
 }
 
 // argsFor builds the CLI arguments for the named consul.
-// If extraArgs is non-empty it replaces the non-interactive defaults;
-// the prompt is always appended as the last element in that case.
+//
+// When extraArgs is non-empty it replaces the non-interactive/model flags, but
+// the prompt is ALWAYS passed via the consul's own prompt flag (promptArgs) —
+// never as a bare positional argument.
+//
+//	result = [promptArgs...] + [extraArgs...]
 func argsFor(consulName, model, prompt string, extraArgs []string) (bin string, args []string, err error) {
 	def, ok := supportedConsuls[consulName]
 	if !ok {
 		return "", nil, fmt.Errorf("unknown consul %q: no binary definition found", consulName)
 	}
 	if len(extraArgs) > 0 {
-		args = append(args, extraArgs...)
-		args = append(args, prompt)
+		args = append(def.promptArgs(prompt), extraArgs...)
 	} else {
 		args = def.defaultArgs(model, prompt)
 	}
