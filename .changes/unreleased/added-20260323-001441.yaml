@@ -1,0 +1,3 @@
+kind: added
+body: Support overriding built-in non-interactive agent CLI options via 'extra_args' configuration
+time: 2026-03-23T00:14:41.918322+03:00
