@@ -1,0 +1,3 @@
+kind: added
+body: Add live streaming of agent feedback (like docker-compose) to stderr
+time: 2026-03-23T00:14:39.548042+03:00
