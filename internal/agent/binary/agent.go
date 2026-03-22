@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/binsabbar/consul-review/internal/agent"
 	"github.com/binsabbar/consul-review/internal/config"
@@ -113,7 +114,12 @@ func (a *Agent) Review(ctx context.Context, req agent.ReviewRequest) (agent.Revi
 	}
 
 	var buf bytes.Buffer
-	if err := a.runner.Run(ctx, bin, args, nil, &buf); err != nil {
+	var out io.Writer = &buf
+	if req.Stream != nil {
+		out = io.MultiWriter(&buf, req.Stream)
+	}
+
+	if err := a.runner.Run(ctx, bin, args, nil, out); err != nil {
 		return agent.ReviewResult{AgentName: a.name}, fmt.Errorf("running %s: %w", bin, err)
 	}
 

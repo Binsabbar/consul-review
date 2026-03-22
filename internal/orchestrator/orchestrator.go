@@ -2,8 +2,10 @@
 package orchestrator
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -61,6 +63,22 @@ func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, repo, 
 	for _, ag := range agents {
 		ag := ag //nolint:copyloopvar // intentional: Go < 1.22 compat inside goroutine
 
+		// Create a pipe for live streaming this agent's output.
+		pr, pw := io.Pipe()
+		agReq := req
+		agReq.Stream = pw
+
+		// Start a goroutine to read the agent's live stream and print it with a prefix.
+		var streamWg sync.WaitGroup
+		streamWg.Add(1)
+		go func(name string, r io.Reader) {
+			defer streamWg.Done()
+			scanner := bufio.NewScanner(r)
+			for scanner.Scan() {
+				fmt.Fprintf(os.Stderr, "[%s] %s\n", name, scanner.Text())
+			}
+		}(ag.Name(), pr)
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -68,7 +86,11 @@ func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, repo, 
 			slog.Info("starting consul", "consul", ag.Name())
 			fmt.Fprintf(os.Stderr, "⏳ Agent %s is reviewing...\n", ag.Name())
 
-			res, err := ag.Review(ctx, req)
+			res, err := ag.Review(ctx, agReq)
+
+			// Close the writer so the scanner knows it's reached EOF.
+			_ = pw.Close()
+			streamWg.Wait() // ensure all streaming lines are printed before we mark it failed/done
 
 			slog.Info("consul finished", "consul", ag.Name(), "err", err)
 			if err != nil {

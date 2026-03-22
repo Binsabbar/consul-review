@@ -2,7 +2,10 @@
 // across all consul implementations (binary, API, etc.).
 package agent
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 // Agent is the contract every consul implementation must satisfy.
 // The orchestrator calls Review() — it never knows whether the implementation
@@ -40,6 +43,10 @@ type ReviewRequest struct {
 	// ExtraArgs are optional CLI flags for binary agents that override the
 	// built-in non-interactive defaults. Ignored by API implementations.
 	ExtraArgs []string
+
+	// Stream is an optional writer that receives the agent's output as it is
+	// generated, mimicking live streaming feedback in the terminal.
+	Stream io.Writer
 }
 
 // ReviewResult holds the outcome of a single agent review.
