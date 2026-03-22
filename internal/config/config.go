@@ -17,6 +17,7 @@ var SupportedConsuls = map[string]string{
 	"gemini":  "gemini",
 	"copilot": "copilot",
 	"oz":      "oz",
+	"claude":  "claude",
 }
 
 // defaultExtraArgs holds the default non-interactive flags per consul.
@@ -25,6 +26,7 @@ var defaultExtraArgs = map[string][]string{
 	"gemini":  {"--yolo"},
 	"copilot": {"--allow-all-tools"},
 	"oz":      {"--no-interactive"},
+	"claude":  {"--dangerously-skip-permissions"},
 }
 
 // DefaultExtraArgs returns the built-in non-interactive flags for consulName.
@@ -60,6 +62,7 @@ type Config struct {
 	Gemini          ConsulConfig `mapstructure:"gemini"`
 	Copilot         ConsulConfig `mapstructure:"copilot"`
 	Oz              ConsulConfig `mapstructure:"oz"`
+	Claude          ConsulConfig `mapstructure:"claude"`
 }
 
 // EnabledConsuls returns a map of consul name → ConsulConfig for every consul
@@ -70,6 +73,7 @@ func (c *Config) EnabledConsuls() map[string]ConsulConfig {
 		"gemini":  c.Gemini,
 		"copilot": c.Copilot,
 		"oz":      c.Oz,
+		"claude":  c.Claude,
 	}
 	enabled := make(map[string]ConsulConfig, len(all))
 	for name, cc := range all {
