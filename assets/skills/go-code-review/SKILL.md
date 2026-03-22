@@ -9,12 +9,12 @@ description: "Perform structured code reviews for Go projects, comparing branch 
 
 | Step | Action |
 |------|--------|
-| 1 | Fetch Jira ticket and verify access |
-| 2 | Get current branch and compare with main |
-| 3 | Analyze changes against ticket requirements |
-| 4 | Check if PR exists |
+| 1 | Fetch the Pull Request diff and details using `gh` CLI |
+| 2 | Extract Jira ticket ID from PR title/branch |
+| 3 | Fetch Jira ticket and verify access |
+| 4 | Analyze PR diff against ticket requirements |
 | 5 | Write feedback to `./agent-feedback/<agent>/<TICKET>.md` |
-| 6 | Comment on PR (if exists and possible) |
+| 6 | Comment on PR using `gh` CLI (if possible) |
 
 ## CRITICAL: Pre-Flight Checks
 
@@ -30,14 +30,14 @@ If NO:
              Please provide ticket details manually or grant Jira access."
 ```
 
-### 2. Git Repository Access
+### 2. GitHub CLI Access
 ```
-Can you access git commands and see branch changes?
+Can you use the `gh` CLI to fetch PR diffs?
 
 If NO:
 ❌ STOP immediately
-✅ Tell user: "Cannot access git repository or run git commands.
-             Need git access to review changes."
+✅ Tell user: "Cannot access the `gh` CLI. 
+             Need `gh` installed and authenticated to fetch the PR."
 ```
 
 ### 3. Agent Name
@@ -52,14 +52,29 @@ If NO or UNCLEAR:
 
 ## Workflow
 
-### Step 1: Fetch Jira Ticket
+### Step 1: Fetch Pull Request
+
+You are provided the PR number and Repository in the prompt.
+Use the `gh` CLI to fetch the PR contents. Do NOT rely on local `git diff` as you may not have the repo cloned locally.
 
 ```bash
-# Determine ticket from branch name or user input
-TICKET="TBY-31"  # Example
+# 1. Get PR metadata (title, body, base branch, head branch)
+gh pr view <PR_NUMBER> --repo <REPO>
 
-# Fetch ticket from Jira using jira tools
-# Get: summary, description, acceptance criteria, status
+# 2. Get the actual code changes
+gh pr diff <PR_NUMBER> --repo <REPO>
+```
+
+**If `gh` commands fail:**
+❌ STOP immediately
+✅ Tell user: "Cannot fetch PR <PR_NUMBER> from <REPO>. Please check my GitHub CLI authentication or if the PR exists."
+
+### Step 2: Fetch Jira Ticket
+
+Extract the Jira ticket ID (e.g., TBY-31) from the PR branch name or PR title.
+
+```bash
+TICKET="TBY-31"  # Derived from PR
 ```
 
 **If ticket fetch fails:**
@@ -70,58 +85,9 @@ TICKET="TBY-31"  # Example
              2. Grant me Jira read access
              3. Provide ticket details manually"
 
-**Required ticket information:**
-- Summary
-- Description (including technical context)
-- Acceptance criteria
-- Current status
-
-### Step 2: Get Branch Changes
-
-```bash
-# Get current branch name
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-
-# Get default branch (usually main or master)
-DEFAULT_BRANCH=$(git remote show origin | grep "HEAD branch" | cut -d ":" -f 2 | xargs)
-
-# Get diff between current branch and default branch
-git diff ${DEFAULT_BRANCH}...${CURRENT_BRANCH}
-
-# Get list of changed files
-git diff --name-only ${DEFAULT_BRANCH}...${CURRENT_BRANCH}
-
-# Get commit messages in this branch
-git log ${DEFAULT_BRANCH}..${CURRENT_BRANCH} --oneline
-```
-
-**If git commands fail:**
-❌ STOP immediately
-✅ Tell user: "Cannot access git repository or branch information.
-             Am I in a git repository with changes?"
-
 ### Step 3: Analyze Changes
 
-Compare the code changes against ticket requirements using the **Go Code Review Checklist**.
-
-### Step 4: Check for Open PR
-
-```bash
-# Check if PR exists for current branch
-# This depends on your git hosting (GitHub, GitLab, Bitbucket)
-
-# For GitHub (if gh CLI available):
-gh pr view --json number,url,title 2>/dev/null
-
-# For GitLab (if glab CLI available):
-glab mr view --json number,web_url,title 2>/dev/null
-```
-
-**PR Check Results:**
-- If PR exists and you have access → Proceed to write comment (Step 6)
-- If PR exists but no access → Note in feedback file, skip PR comment
-- If no PR exists → Note in feedback file, skip PR comment
-- If cannot determine → Note in feedback file, skip PR comment
+Compare the fetched PR diff against the Jira ticket requirements using the **Go Code Review Checklist**.
 
 ### Step 5: Write Feedback File
 
