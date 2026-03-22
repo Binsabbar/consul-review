@@ -20,7 +20,7 @@ import (
 // tell the agent WHAT to review. The agent binary follows the skill to decide
 // how it fetches the PR details.
 func buildPrompt(skillContent, repo, prNumber string) string {
-	return fmt.Sprintf("Use the following skill to review the PR:\n%s\n\nRepository: %s\nPR: #%s\n", skillContent, repo, prNumber)
+	return fmt.Sprintf("Please review GitHub Pull Request #%s in repository %s.\n\nUse the following skill instructions to guide your review process:\n\n%s\n", prNumber, repo, skillContent)
 }
 
 // workerResult holds the review output and any error for a single agent run.
