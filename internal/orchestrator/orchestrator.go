@@ -66,6 +66,15 @@ func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, repo, 
 		// Create a pipe for live streaming this agent's output.
 		pr, pw := io.Pipe()
 		agReq := req
+
+		// 1. Inject the agent's identity.
+		agReq.Prompt = fmt.Sprintf("You are agent %s.\n\n%s", ag.Name(), agReq.Prompt)
+
+		// 2. If --debug is enabled, print the constructed prompt to stderr so the user can see it.
+		if slog.Default().Enabled(ctx, slog.LevelDebug) {
+			fmt.Fprintf(os.Stderr, "[DEBUG] %s prompt:\n%s\n", ag.Name(), agReq.Prompt)
+		}
+
 		agReq.Stream = pw
 
 		// Start a goroutine to read the agent's live stream and print it with a prefix.
