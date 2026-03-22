@@ -1,3 +1,0 @@
-kind: changed
-body: Orchestrator decoupled from concrete PR retrieval constraints (no longer requires 'gh' or 'claude' CLI)
-time: 2026-03-23T00:09:57.667096+03:00
