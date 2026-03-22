@@ -50,11 +50,11 @@ func (s *BinaryAgentSuite) TestArgsFor_DefaultFlags() {
 			wantContain: []string{"-p", "--allow-all-tools"},
 		},
 		{
-			name:        "oz default flags include --no-interactive",
+			name:        "oz default flags include agent run --prompt",
 			consulName:  "oz",
-			model:       "claude-3-5-sonnet",
+			model:       "claude-4-sonnet",
 			wantBin:     "oz",
-			wantContain: []string{"agent", "run", "--prompt", "--no-interactive"},
+			wantContain: []string{"agent", "run", "--prompt"},
 		},
 		{
 			name:       "unknown consul returns error",

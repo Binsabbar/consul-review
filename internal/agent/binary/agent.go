@@ -49,7 +49,7 @@ var supportedConsuls = map[string]consulDef{
 		bin:        "oz",
 		promptArgs: func(prompt string) []string { return []string{"agent", "run", "--prompt", prompt} },
 		defaultArgs: func(model, prompt string) []string {
-			return []string{"agent", "run", "--prompt", prompt, "--no-interactive", "--model", model}
+			return []string{"agent", "run", "--prompt", prompt, "--model", model}
 		},
 	},
 }

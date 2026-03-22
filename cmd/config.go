@@ -44,12 +44,12 @@ gemini:
 
 copilot:
   enabled: false
-  model: "gpt-4"
+  model: "gpt-5.2"
   # extra_args: ["--allow-all-tools"]
 
 oz:
   enabled: false
-  model: "claude-3-5-sonnet"
+  model: "claude-4-sonnet"
   # extra_args: ["--no-interactive"]
 `
 
