@@ -1,0 +1,3 @@
+kind: ✨ Added
+body: Add support for Claude Code binary as a consul reviewer (claude -p --dangerously-skip-permissions)
+time: 2026-03-22T23:13:27Z

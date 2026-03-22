@@ -13,7 +13,8 @@ consul-review review --pr 42 --repo github.com/owner/repo
         │
         ├─► gemini  ─────► (review output) ─┐
         ├─► copilot ─────► (review output) ─┼─► stdout (each review printed with header)
-        └─► oz ──────────► (review output) ─┘
+        ├─► oz ──────────► (review output) ─┤
+        └─► claude ──────► (review output) ─┘
 ```
 
 **How PR retrieval works:** The tool does _not_ fetch the PR itself. Instead it passes the skill file, repository, and PR number directly to each agent binary. The **skill file instructs each agent** on how to fetch the PR details — this could be via the `gh` CLI, an MCP server, a browser tool, or any other mechanism the agent supports. This keeps `consul-review` as a pure orchestration layer with no hard dependency on `gh` or any aggregation tool.
@@ -29,6 +30,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
 | `gemini` | AI consul _(if enabled)_ | [AI Studio CLI](https://developers.google.com/gemini-api/docs/gemini-cli) |
 | `copilot` | AI consul _(if enabled)_ | [GitHub Copilot CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli) |
 | `oz` | AI consul _(if enabled)_ | Internal / your own install |
+| `claude` | AI consul _(if enabled)_ | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) |
 
 > **Authentication is your responsibility.** Run each agent's auth command before using `consul-review`. No API keys or tokens are stored in the config file.
 >
@@ -36,6 +38,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
 > gemini auth login              # Gemini
 > gh auth login                  # GitHub Copilot
 > oz auth login                  # Oz
+> claude auth login              # Claude Code
 > ```
 
 ---
@@ -117,6 +120,7 @@ repo: "github.com/owner/repo"
 #   gemini:  [--yolo]
 #   copilot: [--allow-all-tools]
 #   oz:      [--no-interactive]
+#   claude:  [--dangerously-skip-permissions]
 #
 # extra_args REPLACES the built-in flags when set.
 
@@ -132,6 +136,10 @@ copilot:
 oz:
   enabled: false
   model: "claude-4-sonnet"
+
+claude:
+  enabled: false
+  model: "claude-opus-4-5"
 ```
 
 ---
@@ -221,6 +229,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
   │ Goroutine 1 │  gemini  -p "<prompt>" --yolo --model gemini-2.5-pro
   │ Goroutine 2 │  copilot -p "<prompt>" --allow-all-tools
   │ Goroutine 3 │  oz agent run --prompt "<prompt>" --no-interactive
+  │ Goroutine 4 │  claude -p "<prompt>" --dangerously-skip-permissions --model claude-opus-4-5
   └──────┬──────┘
          │ all run concurrently (sync.WaitGroup)
          ▼

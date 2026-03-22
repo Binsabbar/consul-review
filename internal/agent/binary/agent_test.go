@@ -57,6 +57,13 @@ func (s *BinaryAgentSuite) TestArgsFor_DefaultFlags() {
 			wantContain: []string{"agent", "run", "--prompt"},
 		},
 		{
+			name:        "claude default flags include --dangerously-skip-permissions and --model",
+			consulName:  "claude",
+			model:       "claude-opus-4-5",
+			wantBin:     "claude",
+			wantContain: []string{"-p", "--dangerously-skip-permissions", "--model", "claude-opus-4-5"},
+		},
+		{
 			name:       "unknown consul returns error",
 			consulName: "unknown-ai",
 			wantErr:    true,
