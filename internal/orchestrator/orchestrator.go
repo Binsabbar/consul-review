@@ -49,6 +49,7 @@ func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, repo, 
 		PRNumber: prNumber,
 	}
 
+	fmt.Fprintf(os.Stderr, "🚀 Starting review for PR #%s on %s\n", prNumber, repo)
 	slog.Info("starting review", "repo", repo, "pr", prNumber, "agents", len(agents))
 
 	results := make([]workerResult, 0, len(agents))
@@ -65,8 +66,16 @@ func Orchestrate(ctx context.Context, agents []agent.Agent, skillContent, repo, 
 			defer wg.Done()
 
 			slog.Info("starting consul", "consul", ag.Name())
+			fmt.Fprintf(os.Stderr, "⏳ Agent %s is reviewing...\n", ag.Name())
+
 			res, err := ag.Review(ctx, req)
+
 			slog.Info("consul finished", "consul", ag.Name(), "err", err)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "❌ Agent %s failed: %v\n", ag.Name(), err)
+			} else {
+				fmt.Fprintf(os.Stderr, "✅ Agent %s finished.\n", ag.Name())
+			}
 
 			mu.Lock()
 			results = append(results, workerResult{
