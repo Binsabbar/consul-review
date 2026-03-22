@@ -115,10 +115,6 @@ func Load(path string) (*Config, error) {
 func Validate(c *Config) error {
 	var errs []string
 
-	if c.Repo == "" {
-		errs = append(errs, "repo is required (set via config or --repo flag)")
-	}
-
 	// code_review_skill is optional — empty means use the bundled default.
 	if c.CodeReviewSkill != "" {
 		if _, err := os.Stat(c.CodeReviewSkill); err != nil {

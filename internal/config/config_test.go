@@ -157,11 +157,6 @@ func (s *ConfigSuite) TestValidate_TableDriven() {
 			wantErr: true,
 		},
 		{
-			name:    "missing repo",
-			cfg:     &Config{Gemini: ConsulConfig{Enabled: true}},
-			wantErr: true,
-		},
-		{
 			name:    "no enabled consuls",
 			cfg:     &Config{Repo: "github.com/owner/repo", CodeReviewSkill: skillFile},
 			wantErr: true,
