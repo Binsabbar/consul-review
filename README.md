@@ -139,7 +139,7 @@ oz:
 
 claude:
   enabled: false
-  model: "claude-opus-4-5"
+  model: "claude-sonnet-4-6"
 ```
 
 ---
@@ -229,7 +229,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
   │ Goroutine 1 │  gemini  -p "<prompt>" --yolo --model gemini-2.5-pro
   │ Goroutine 2 │  copilot -p "<prompt>" --allow-all-tools
   │ Goroutine 3 │  oz agent run --prompt "<prompt>" --no-interactive
-  │ Goroutine 4 │  claude -p "<prompt>" --dangerously-skip-permissions --model claude-opus-4-5
+  │ Goroutine 4 │  claude -p "<prompt>" --dangerously-skip-permissions --model claude-sonnet-4-6
   └──────┬──────┘
          │ all run concurrently (sync.WaitGroup)
          ▼
