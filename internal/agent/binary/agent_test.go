@@ -59,9 +59,9 @@ func (s *BinaryAgentSuite) TestArgsFor_DefaultFlags() {
 		{
 			name:        "claude default flags include --dangerously-skip-permissions and --model",
 			consulName:  "claude",
-			model:       "claude-opus-4-5",
+			model:       "claude-sonnet-4-6",
 			wantBin:     "claude",
-			wantContain: []string{"-p", "--dangerously-skip-permissions", "--model", "claude-opus-4-5"},
+			wantContain: []string{"-p", "--dangerously-skip-permissions", "--model", "claude-sonnet-4-6"},
 		},
 		{
 			name:       "unknown consul returns error",

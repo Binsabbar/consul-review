@@ -56,7 +56,7 @@ oz:
 
 claude:
   enabled: false
-  model: "claude-opus-4-5"
+  model: "claude-sonnet-4-6"
   # extra_args: ["--dangerously-skip-permissions"]
 `
 
