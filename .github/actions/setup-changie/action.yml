@@ -9,7 +9,7 @@ inputs:
   changie-version:
     description: 'Changie version to install'
     required: false
-    default: '1.22.1'
+    default: '1.24.0'
 
 outputs:
   changie-version:
