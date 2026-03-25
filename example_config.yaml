@@ -5,6 +5,8 @@
 #   gemini:  gemini auth login
 #   copilot: gh auth login  (or set GH_TOKEN)
 #   oz:      oz auth login
+#   codex:   codex auth login  (or set OPENAI_API_KEY)
+#   claude:  claude auth login  (or set ANTHROPIC_API_KEY)
 #
 # No API keys or secrets are stored in this file.
 
@@ -22,6 +24,8 @@ repo: "github.com/owner/repo"
 #   gemini:  [--yolo]
 #   copilot: [--allow-all-tools]
 #   oz:      [--no-interactive]
+#   codex:   [--full-auto]
+#   claude:  [--dangerously-skip-permissions]
 
 gemini:
   enabled: true
@@ -36,3 +40,11 @@ copilot:
 oz:
   enabled: false
   model: "claude-3-5-sonnet"
+
+codex:
+  enabled: false
+  model: "gpt-5.3-codex"
+
+claude:
+  enabled: false
+  model: "claude-sonnet-4-6"
