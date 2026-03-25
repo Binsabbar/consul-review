@@ -14,7 +14,8 @@ consul-review review --pr 42 --repo github.com/owner/repo
         ├─► gemini  ─────► (review output) ─┐
         ├─► copilot ─────► (review output) ─┼─► stdout (each review printed with header)
         ├─► oz ──────────► (review output) ─┤
-        └─► claude ──────► (review output) ─┘
+        ├─► claude ──────► (review output) ─┤
+        └─► codex ───────► (review output) ─┘
 ```
 
 **How PR retrieval works:** The tool does _not_ fetch the PR itself. Instead it passes the skill file, repository, and PR number directly to each agent binary. The **skill file instructs each agent** on how to fetch the PR details — this could be via the `gh` CLI, an MCP server, a browser tool, or any other mechanism the agent supports. This keeps `consul-review` as a pure orchestration layer with no hard dependency on `gh` or any aggregation tool.
@@ -31,6 +32,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
 | `copilot` | AI consul _(if enabled)_ | [GitHub Copilot CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli) |
 | `oz` | AI consul _(if enabled)_ | Internal / your own install |
 | `claude` | AI consul _(if enabled)_ | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) |
+| `codex` | AI consul _(if enabled)_ | [OpenAI Codex CLI](https://github.com/openai/codex) |
 
 > **Authentication is your responsibility.** Run each agent's auth command before using `consul-review`. No API keys or tokens are stored in the config file.
 >
@@ -39,6 +41,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
 > gh auth login                  # GitHub Copilot
 > oz auth login                  # Oz
 > claude auth login              # Claude Code
+> codex auth login               # Codex CLI
 > ```
 
 ---
@@ -121,6 +124,7 @@ repo: "github.com/owner/repo"
 #   copilot: [--allow-all-tools]
 #   oz:      [--no-interactive]
 #   claude:  [--dangerously-skip-permissions]
+#   codex:   [-q]
 #
 # extra_args REPLACES the built-in flags when set.
 
@@ -140,6 +144,10 @@ oz:
 claude:
   enabled: false
   model: "claude-sonnet-4-6"
+
+codex:
+  enabled: false
+  model: "gpt-5.3-codex"
 ```
 
 ---
@@ -230,6 +238,7 @@ consul-review review --pr 42 --repo github.com/owner/repo
   │ Goroutine 2 │  copilot -p "<prompt>" --allow-all-tools
   │ Goroutine 3 │  oz agent run --prompt "<prompt>" --no-interactive
   │ Goroutine 4 │  claude -p "<prompt>" --dangerously-skip-permissions --model claude-sonnet-4-6
+  │ Goroutine 5 │  codex -q "<prompt>" --model gpt-5.3-codex
   └──────┬──────┘
          │ all run concurrently (sync.WaitGroup)
          ▼

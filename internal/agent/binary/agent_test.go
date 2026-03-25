@@ -64,6 +64,13 @@ func (s *BinaryAgentSuite) TestArgsFor_DefaultFlags() {
 			wantContain: []string{"-p", "--dangerously-skip-permissions", "--model", "claude-sonnet-4-6"},
 		},
 		{
+			name:        "codex default flags include -q and --model",
+			consulName:  "codex",
+			model:       "gpt-5.3-codex",
+			wantBin:     "codex",
+			wantContain: []string{"-q", "--model", "gpt-5.3-codex"},
+		},
+		{
 			name:       "unknown consul returns error",
 			consulName: "unknown-ai",
 			wantErr:    true,

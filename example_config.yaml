@@ -6,6 +6,7 @@
 #   copilot: gh auth login  (or set GH_TOKEN)
 #   oz:      oz auth login
 #   claude:  claude auth login
+#   codex:   codex auth login
 #
 # No API keys or secrets are stored in this file.
 
@@ -24,6 +25,7 @@ repo: "github.com/owner/repo"
 #   copilot: [--allow-all-tools]
 #   oz:      [--no-interactive]
 #   claude:  [--dangerously-skip-permissions]
+#   codex:   [-q]
 
 gemini:
   enabled: true
@@ -42,3 +44,7 @@ oz:
 claude:
   enabled: false
   model: "claude-sonnet-4-6"
+
+codex:
+  enabled: false
+  model: "gpt-5.3-codex"

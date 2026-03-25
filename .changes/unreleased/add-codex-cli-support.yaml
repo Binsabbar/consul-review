@@ -1,0 +1,3 @@
+kind: ✨ Added
+body: Add support for OpenAI Codex CLI binary as a consul reviewer (codex -q, default model gpt-5.3-codex)
+time: 2026-03-25T21:35:14Z

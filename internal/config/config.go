@@ -18,6 +18,7 @@ var SupportedConsuls = map[string]string{
 	"copilot": "copilot",
 	"oz":      "oz",
 	"claude":  "claude",
+	"codex":   "codex",
 }
 
 // defaultExtraArgs holds the default non-interactive flags per consul.
@@ -27,6 +28,7 @@ var defaultExtraArgs = map[string][]string{
 	"copilot": {"--allow-all-tools"},
 	"oz":      {"--no-interactive"},
 	"claude":  {"--dangerously-skip-permissions"},
+	"codex":   {"-q"},
 }
 
 // DefaultExtraArgs returns the built-in non-interactive flags for consulName.
@@ -63,6 +65,7 @@ type Config struct {
 	Copilot         ConsulConfig `mapstructure:"copilot"`
 	Oz              ConsulConfig `mapstructure:"oz"`
 	Claude          ConsulConfig `mapstructure:"claude"`
+	Codex           ConsulConfig `mapstructure:"codex"`
 }
 
 // EnabledConsuls returns a map of consul name → ConsulConfig for every consul
@@ -74,6 +77,7 @@ func (c *Config) EnabledConsuls() map[string]ConsulConfig {
 		"copilot": c.Copilot,
 		"oz":      c.Oz,
 		"claude":  c.Claude,
+		"codex":   c.Codex,
 	}
 	enabled := make(map[string]ConsulConfig, len(all))
 	for name, cc := range all {

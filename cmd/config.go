@@ -20,6 +20,7 @@ const configInitTemplate = `# consul-review configuration
 #   copilot: gh auth login  (or set GH_TOKEN)
 #   oz:      oz auth login
 #   claude:  claude auth login
+#   codex:   codex auth login
 #
 # Full GitHub repository path including hostname (required).
 # Can also be passed at runtime via: consul-review review --repo github.com/owner/repo
@@ -38,6 +39,7 @@ repo: "github.com/owner/repo"
 #   copilot: [--allow-all-tools]
 #   oz:      [--no-interactive]
 #   claude:  [--dangerously-skip-permissions]
+#   codex:   [-q]
 
 gemini:
   enabled: true
@@ -58,6 +60,11 @@ claude:
   enabled: false
   model: "claude-sonnet-4-6"
   # extra_args: ["--dangerously-skip-permissions"]
+
+codex:
+  enabled: false
+  model: "gpt-5.3-codex"
+  # extra_args: ["-q"]
 `
 
 // configCmd is the parent for config-management subcommands.

@@ -85,6 +85,7 @@ func (s *ConfigSuite) TestDefaultExtraArgs() {
 	s.Require().Equal([]string{"--yolo"}, DefaultExtraArgs("gemini"))
 	s.Require().Equal([]string{"--allow-all-tools"}, DefaultExtraArgs("copilot"))
 	s.Require().Equal([]string{"--no-interactive"}, DefaultExtraArgs("oz"))
+	s.Require().Equal([]string{"-q"}, DefaultExtraArgs("codex"))
 	s.Require().Nil(DefaultExtraArgs("unknown"))
 }
 
@@ -111,8 +112,10 @@ func (s *ConfigSuite) TestEnabledConsuls_AllEnabled() {
 		Gemini:  ConsulConfig{Enabled: true},
 		Copilot: ConsulConfig{Enabled: true},
 		Oz:      ConsulConfig{Enabled: true},
+		Claude:  ConsulConfig{Enabled: true},
+		Codex:   ConsulConfig{Enabled: true},
 	}
-	s.Require().Len(cfg.EnabledConsuls(), 3)
+	s.Require().Len(cfg.EnabledConsuls(), 5)
 }
 
 func (s *ConfigSuite) TestEnabledConsuls_NoneEnabled() {

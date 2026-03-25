@@ -1,5 +1,5 @@
 // Package binary provides a binary-backed Agent implementation that shells out
-// to a locally installed consul CLI (gemini, copilot, oz, claude).
+// to a locally installed consul CLI (gemini, copilot, oz, claude, codex).
 //
 // This is the current (v0.x) implementation. When direct API backends are
 // ready, they will live in sibling packages (e.g. internal/agent/anthropic,
@@ -57,6 +57,13 @@ var supportedConsuls = map[string]consulDef{
 		promptArgs: func(prompt string) []string { return []string{"-p", prompt} },
 		defaultArgs: func(model, prompt string) []string {
 			return []string{"-p", prompt, "--dangerously-skip-permissions", "--model", model}
+		},
+	},
+	"codex": {
+		bin:        "codex",
+		promptArgs: func(prompt string) []string { return []string{"-q", prompt} },
+		defaultArgs: func(model, prompt string) []string {
+			return []string{"-q", prompt, "--model", model}
 		},
 	},
 }
